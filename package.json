@@ -28,6 +28,6 @@
   "scripts": {
     "dev": "nodemon src/server.ts",
     "build": "prisma generate && tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/src/server.js"
   }
 }
