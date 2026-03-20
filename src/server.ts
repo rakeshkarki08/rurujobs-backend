@@ -13,6 +13,16 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
+// Root route for health check
+app.get('/', (req, res) => {
+  res.json({ message: 'RuruJobs API is running', status: 'OK' });
+});
+
+// API base route
+app.get('/api', (req, res) => {
+  res.json({ message: 'Welcome to RuruJobs API v1' });
+});
+
 // Register
 app.post('/api/auth/register', async (req, res) => {
   try {
