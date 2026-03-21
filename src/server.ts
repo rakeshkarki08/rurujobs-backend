@@ -23,6 +23,38 @@ app.get('/api', (req, res) => {
   res.json({ message: 'Welcome to RuruJobs API v1' });
 });
 
+// Auth Middleware
+const authenticateToken = (req: any, res: any, next: any) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Access denied' });
+
+  jwt.verify(token, process.env.JWT_SECRET || 'secret', (err: any, user: any) => {
+    if (err) return res.status(403).json({ error: 'Invalid token' });
+    req.user = user;
+    next();
+  });
+};
+
+// Get Current User Profile
+app.get('/api/profiles/me', authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user.id;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        employeeProfile: true,
+        employerProfile: true
+      }
+    });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
 // Register
 app.post('/api/auth/register', async (req, res) => {
   try {
