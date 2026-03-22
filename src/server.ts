@@ -179,6 +179,29 @@ app.put('/api/admin/profiles/:type/:id/status', async (req: any, res: any) => {
   }
 });
 
+// Get all approved talents (public directory)
+app.get('/api/talents', async (req: any, res: any) => {
+  try {
+    const talents = await prisma.employeeProfile.findMany({
+      where: { status: 'APPROVED' },
+    });
+    
+    // Mask sensitive info for public viewing
+    const maskedTalents = talents.map((t: any) => ({
+      ...t,
+      firstName: t.firstName ? t.firstName[0] + '****' : '****',
+      lastName: t.lastName ? t.lastName[0] + '****' : '****',
+      phone: '***-***-****',
+      user: undefined, // ensure no user email or password leaks
+    }));
+
+    res.json(maskedTalents);
+  } catch (error) {
+    console.error('Fetch talents error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Employee Profile Onboarding
 app.post('/api/profiles/employee', async (req, res) => {
   try {
