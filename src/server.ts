@@ -4,14 +4,45 @@ import dotenv from 'dotenv';
 import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
 dotenv.config();
+
+cloudinary.config();
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (req, file) => {
+    let resource_type = 'auto';
+    if (file.mimetype.includes('pdf') || file.mimetype.includes('document') || file.mimetype.includes('msword') || file.originalname.endsWith('.docx')) {
+      resource_type = 'raw';
+    } else if (file.mimetype.includes('image')) {
+      resource_type = 'image';
+    }
+    return {
+      folder: 'rurujobs_uploads',
+      resource_type: resource_type,
+    };
+  },
+});
+
+const upload = multer({ storage: storage });
 
 const app = express();
 const prisma = new PrismaClient();
 
 app.use(cors());
 app.use(express.json());
+
+// File Upload endpoint
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+  res.json({ url: req.file.path });
+});
 
 // Root route for health check
 app.get('/', (req, res) => {
