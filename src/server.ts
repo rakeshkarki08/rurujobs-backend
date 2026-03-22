@@ -130,6 +130,59 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// --- Admin Verification Endpoints ---
+
+// Get all pending profiles
+app.get('/api/admin/profiles/pending', authenticateToken, async (req: any, res: any) => {
+  try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Require Admin Role' });
+
+    const employees = await prisma.employeeProfile.findMany({
+      where: { status: 'PENDING' },
+      include: { user: { select: { name: true, email: true } } }
+    });
+    
+    const employers = await prisma.employerProfile.findMany({
+      where: { status: 'PENDING' },
+      include: { user: { select: { name: true, email: true } } }
+    });
+
+    res.json({ employees, employers });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch pending profiles' });
+  }
+});
+
+// Update profile status
+app.put('/api/admin/profiles/:type/:id/status', authenticateToken, async (req: any, res: any) => {
+  try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Require Admin Role' });
+    
+    const { type, id } = req.params;
+    const { status } = req.body; // 'APPROVED' or 'REJECTED'
+
+    if (type === 'employee') {
+      const updated = await prisma.employeeProfile.update({
+        where: { id },
+        data: { status }
+      });
+      return res.json(updated);
+    } else if (type === 'employer') {
+      const updated = await prisma.employerProfile.update({
+        where: { id },
+        data: { status }
+      });
+      return res.json(updated);
+    } else {
+      return res.status(400).json({ error: 'Invalid profile type' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to update profile status' });
+  }
+});
+
 // Employee Profile Onboarding
 app.post('/api/profiles/employee', async (req, res) => {
   try {
@@ -170,6 +223,13 @@ app.post('/api/profiles/employer', async (req, res) => {
 app.get('/api/jobs', async (req, res) => {
   try {
     const jobs = await prisma.job.findMany({
+      where: {
+        employer: {
+          employerProfile: {
+            status: 'APPROVED'
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' },
       include: {
         employer: { select: { name: true } },
