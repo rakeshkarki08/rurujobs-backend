@@ -238,20 +238,40 @@ app.post('/api/profiles/employer', async (req, res) => {
   }
 });
 
+// Job Categories
+app.get('/api/job-categories', async (req, res) => {
+  try {
+    const categories = await prisma.jobCategory.findMany({
+      orderBy: { name: 'asc' }
+    });
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+});
+
+app.post('/api/job-categories', async (req, res) => {
+  try {
+    const { name, description, imageUrl } = req.body;
+    const category = await prisma.jobCategory.create({
+      data: { name, description, imageUrl }
+    });
+    res.status(201).json(category);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create category' });
+  }
+});
+
 // Get all jobs
 app.get('/api/jobs', async (req, res) => {
   try {
+    // We remove the strict where clause that hides admin-created jobs without approved employers.
+    // Instead we just get all jobs to display in /jobs.
     const jobs = await prisma.job.findMany({
-      where: {
-        employer: {
-          employerProfile: {
-            status: 'APPROVED'
-          }
-        }
-      },
       orderBy: { createdAt: 'desc' },
       include: {
         employer: { select: { name: true } },
+        jobCategory: true,
         _count: { select: { applications: true } }
       }
     });
@@ -265,9 +285,13 @@ app.get('/api/jobs', async (req, res) => {
 app.post('/api/jobs', async (req, res) => {
   try {
     const data = req.body;
-    const employer = await prisma.user.findFirst({
-      where: { role: Role.EMPLOYER }
-    });
+    let employerId = data.employerId || null;
+    if (!employerId) {
+      const employer = await prisma.user.findFirst({
+        where: { role: Role.EMPLOYER }
+      });
+      employerId = employer?.id || null;
+    }
 
     const job = await prisma.job.create({
       data: {
@@ -276,9 +300,14 @@ app.post('/api/jobs', async (req, res) => {
         location: data.location,
         salary: data.salary,
         type: data.type,
-        category: data.category,
+        category: data.category || '', // fallback
+        categoryId: data.categoryId || null,
         description: data.description,
-        employerId: employer?.id || null,
+        workDays: data.workDays,
+        liveInOut: data.liveInOut,
+        languageReq: data.languageReq,
+        nationalityPrefer: data.nationalityPrefer,
+        employerId: employerId,
       }
     });
     res.status(201).json(job);
