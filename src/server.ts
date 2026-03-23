@@ -262,6 +262,20 @@ app.post('/api/job-categories', async (req, res) => {
   }
 });
 
+app.put('/api/job-categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, imageUrl } = req.body;
+    const category = await prisma.jobCategory.update({
+      where: { id },
+      data: { name, description, imageUrl }
+    });
+    res.json(category);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update category' });
+  }
+});
+
 // Get all jobs
 app.get('/api/jobs', async (req, res) => {
   try {
