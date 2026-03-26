@@ -242,7 +242,12 @@ app.post('/api/profiles/employer', async (req, res) => {
 app.get('/api/job-categories', async (req, res) => {
   try {
     const categories = await prisma.jobCategory.findMany({
-      orderBy: { name: 'asc' }
+      orderBy: { name: 'asc' },
+      include: {
+        _count: {
+          select: { jobs: true }
+        }
+      }
     });
     res.json(categories);
   } catch (error) {
@@ -296,15 +301,24 @@ app.get('/api/jobs', async (req, res) => {
 });
 
 // Create a job
-app.post('/api/jobs', async (req, res) => {
+app.post('/api/jobs', authenticateToken, async (req: any, res: any) => {
   try {
     const data = req.body;
-    let employerId = data.employerId || null;
-    if (!employerId) {
-      const employer = await prisma.user.findFirst({
-        where: { role: Role.EMPLOYER }
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    if (userRole !== Role.EMPLOYER && userRole !== Role.ADMIN) {
+      return res.status(403).json({ error: 'Only employers and admins can post jobs' });
+    }
+
+    // If it's an employer, check if they are approved
+    if (userRole === Role.EMPLOYER) {
+      const employerProfile = await prisma.employerProfile.findUnique({
+        where: { userId: userId }
       });
-      employerId = employer?.id || null;
+      if (!employerProfile || employerProfile.status !== 'APPROVED') {
+        return res.status(403).json({ error: 'Your account must be approved before you can post jobs' });
+      }
     }
 
     const job = await prisma.job.create({
@@ -321,7 +335,7 @@ app.post('/api/jobs', async (req, res) => {
         liveInOut: data.liveInOut,
         languageReq: data.languageReq,
         nationalityPrefer: data.nationalityPrefer,
-        employerId: employerId,
+        employerId: userId,
       }
     });
     res.status(201).json(job);
