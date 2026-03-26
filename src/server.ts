@@ -132,23 +132,30 @@ app.post('/api/auth/login', async (req, res) => {
 
 // --- Admin Verification Endpoints ---
 
-// Get all pending profiles
-app.get('/api/admin/profiles/pending', async (req: any, res: any) => {
+// Get profiles by status
+app.get('/api/admin/profiles/:status', async (req: any, res: any) => {
   try {
+    const { status } = req.params;
+    const upperStatus = status.toUpperCase();
+
+    if (!['PENDING', 'APPROVED', 'REJECTED'].includes(upperStatus)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
     const employees = await prisma.employeeProfile.findMany({
-      where: { status: 'PENDING' },
+      where: { status: upperStatus },
       include: { user: { select: { name: true, email: true } } }
     });
     
     const employers = await prisma.employerProfile.findMany({
-      where: { status: 'PENDING' },
+      where: { status: upperStatus },
       include: { user: { select: { name: true, email: true } } }
     });
 
     res.json({ employees, employers });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Failed to fetch pending profiles' });
+    res.status(500).json({ error: 'Failed to fetch profiles' });
   }
 });
 
