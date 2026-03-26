@@ -349,10 +349,72 @@ app.post('/api/jobs', authenticateToken, async (req: any, res: any) => {
   }
 });
 
-// Delete a job
-app.delete('/api/jobs/:id', async (req, res) => {
+// Get a single job
+app.get('/api/jobs/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const job = await prisma.job.findUnique({
+      where: { id },
+      include: {
+        employer: { 
+          include: { employerProfile: true } 
+        },
+        jobCategory: true,
+        _count: { select: { applications: true } }
+      }
+    });
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    res.json(job);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch job' });
+  }
+});
+
+// Update a job
+app.put('/api/jobs/:id', authenticateToken, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const data = req.body;
+    const userRole = req.user.role;
+
+    if (userRole !== Role.ADMIN) {
+      return res.status(403).json({ error: 'Only admins can update jobs' });
+    }
+
+    const job = await prisma.job.update({
+      where: { id },
+      data: {
+        title: data.title,
+        company: data.company,
+        location: data.location,
+        salary: data.salary,
+        type: data.type,
+        category: data.category || '',
+        categoryId: data.categoryId || null,
+        description: data.description,
+        workDays: data.workDays,
+        liveInOut: data.liveInOut,
+        languageReq: data.languageReq,
+        nationalityPrefer: data.nationalityPrefer,
+      }
+    });
+    res.json(job);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to update job' });
+  }
+});
+
+// Delete a job
+app.delete('/api/jobs/:id', authenticateToken, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const userRole = req.user.role;
+
+    if (userRole !== Role.ADMIN) {
+      return res.status(403).json({ error: 'Only admins can delete jobs' });
+    }
+
     await prisma.application.deleteMany({ where: { jobId: id } });
     await prisma.job.delete({ where: { id } });
     res.json({ success: true });
