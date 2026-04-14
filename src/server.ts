@@ -370,6 +370,68 @@ app.get('/api/jobs/:id', async (req, res) => {
   }
 });
 
+// Submit a job application
+app.post('/api/applications', async (req, res) => {
+  try {
+    const { jobId, userId, fullName, email, phoneNumber, message, cvUrl } = req.body;
+    
+    if (!jobId || !fullName || !email || !phoneNumber) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const application = await prisma.application.create({
+      data: {
+        jobId,
+        userId: userId || null,
+        fullName,
+        email,
+        phoneNumber,
+        message: message || '',
+        cvUrl: cvUrl || null,
+        status: 'PENDING'
+      }
+    });
+
+    res.status(201).json(application);
+  } catch (error) {
+    console.error('Application error:', error);
+    res.status(500).json({ error: 'Failed to submit application' });
+  }
+});
+
+// Get all applications
+app.get('/api/applications', async (req, res) => {
+  try {
+    const applications = await prisma.application.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        job: { select: { title: true, company: true } },
+        user: { select: { name: true, email: true } }
+      }
+    });
+    res.json(applications);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch applications' });
+  }
+});
+
+// Get current user's applications
+app.get('/api/applications/me', authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user.id;
+    const applications = await prisma.application.findMany({
+      where: { userId },
+      include: {
+        job: { select: { title: true, company: true, location: true, salary: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(applications);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch your applications' });
+  }
+});
+
 // Update a job
 app.put('/api/jobs/:id', authenticateToken, async (req: any, res: any) => {
   try {
