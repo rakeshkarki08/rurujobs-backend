@@ -432,6 +432,36 @@ app.get('/api/applications/me', authenticateToken, async (req: any, res: any) =>
   }
 });
 
+// Get applications for an employer's posted jobs
+app.get('/api/applications/employer', authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Optional: Only check if it's an employer or admin
+    if (userRole === Role.JOB_SEEKER) {
+      return res.status(403).json({ error: 'Job seekers cannot view employer applications' });
+    }
+
+    const applications = await prisma.application.findMany({
+      where: {
+        job: {
+          employerId: userId
+        }
+      },
+      include: {
+        job: { select: { title: true, company: true } },
+        user: { select: { name: true, email: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(applications);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch applications for your jobs' });
+  }
+});
+
 // Update a job
 app.put('/api/jobs/:id', authenticateToken, async (req: any, res: any) => {
   try {

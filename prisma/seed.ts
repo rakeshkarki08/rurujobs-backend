@@ -50,6 +50,9 @@ async function main() {
     data: {
       jobId: job1.id,
       userId: seeker.id,
+      fullName: 'John Doe',
+      email: 'john@example.com',
+      phoneNumber: '123-456-7890',
       cvUrl: 'https://res.cloudinary.com/dpkbxdvhm/image/upload/v1/mock_cv.pdf',
       status: 'PENDING',
     },
